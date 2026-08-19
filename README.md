@@ -92,44 +92,65 @@ Measured FAISS search latency is approximately 0.028 ms/query on the evaluated s
 
 ```text
 FusionMatch/
-├── artifacts/
-│   ├── checkpoints/
-│   ├── index/
-│   │   ├── id_map.json
-│   │   ├── index.faiss
-│   │   └── thresholds.json
-│   ├── metrics/
-│   │   ├── final_summary_report.csv
-│   │   ├── nprobe_benchmark.csv
-│   │   ├── test_metrics.json
-│   │   └── training_curves.png
-│   └── onnx/
-│       ├── fusion_match_fp32.onnx
-│       └── fusion_match_int8.onnx
-├── config/
-│   ├── default_config.yaml
-│   └── serving_config.yaml
-├── docker/
-│   └── docker-compose.yaml
-├── notebooks/
-│   └── FusionMatch_Colab_Master.ipynb
-├── src/
-│   ├── data/
-│   ├── export/
-│   ├── indexing/
-│   ├── models/
-│   ├── serving/
-│   ├── training/
-│   └── utils/
-├── tests/
-│   ├── test_api.py
-│   ├── test_data_pipeline.py
-│   ├── test_indexing.py
-│   ├── test_losses.py
-│   └── test_model_forward.py
-├── Dockerfile
-├── requirements.txt
-└── requirements-serving.txt
+├── artifacts/                           # Persistent weights, indexes, and evaluation benchmarks
+│   ├── checkpoints/                     # Model weights (warmup_best.pt, best.pt)
+│   ├── index/                           # Compressed FAISS IndexIVFPQ & Bayesian thresholds
+│   │   ├── id_map.json                  # SKU identifier index mapping
+│   │   ├── index.faiss                  # Production IVF-PQ index (0.73 MB)
+│   │   └── thresholds.json              # 78 calibrated category-specific decision thresholds
+│   ├── metrics/                         # Benchmark reports & training trajectories
+│   │   ├── final_summary_report.csv     # Master metric report (Val/Test F1, P@K, R@K)
+│   │   ├── nprobe_benchmark.csv         # FAISS latency-recall Pareto frontier
+│   │   ├── test_metrics.json            # Final evaluation metrics on test split
+│   │   └── training_curves.png          # High-resolution loss & F1 trajectory plot
+│   └── onnx/                            # Exported and quantized computation graphs
+│       ├── fusion_match_fp32.onnx       # Full-precision ONNX model graph
+│       └── fusion_match_int8.onnx       # INT8 dynamic quantized model (202 MB)
+├── config/                              # Hyperparameters & serving configurations
+│   ├── base_config.yaml                 # Core model & training hyperparameters
+│   ├── colab_free_tier.yaml             # Memory-optimized Colab settings
+│   └── deploy_config.yaml               # Serving engine & search configuration
+├── docker/                              # Container orchestration & CPU-optimized builds
+│   ├── Dockerfile                       # Multi-stage lightweight CPU image (<1.2 GB)
+│   └── docker-compose.yaml              # Service orchestration with healthchecks
+├── notebooks/                           # Colab training & evaluation workflows
+│   └── FusionMatch_Colab_Master.ipynb   # 11-step master notebook with Drive checkpointing
+├── src/                                 # Production source code
+│   ├── data/                            # Dataset loaders, augmentations & quality scorers
+│   │   ├── abo_loader.py                # Amazon Berkeley Objects parser & stratified splits
+│   │   ├── augmentations.py             # Vision (PIL) and text (token masking) augmenters
+│   │   ├── dataset.py                   # PyTorch Dataset & custom batch collator
+│   │   └── quality_proxies.py           # Laplacian blur & text density estimators
+│   ├── export/                          # ONNX conversion & INT8 quantization
+│   │   ├── quantize.py                  # Dynamic INT8 weight quantization
+│   │   └── to_onnx.py                   # PyTorch to ONNX graph export (opset 17)
+│   ├── indexing/                        # Vector indexing & decision calibration
+│   │   ├── build_index.py               # FAISS IndexIVFPQ builder & nprobe tuner
+│   │   └── threshold_calibration.py     # Bayesian Beta-Binomial threshold calibrator
+│   ├── models/                          # Neural network architectures
+│   │   ├── fusion_match_model.py        # Top-level end-to-end model module
+│   │   ├── gated_fusion.py              # Quality-aware softmax gating layer
+│   │   ├── multi_view_pooling.py        # Multi-perspective attention pooling
+│   │   └── siglip_encoder.py            # SigLIP vision & text dual encoder
+│   ├── serving/                         # FastAPI inference microservice
+│   │   ├── inference.py                 # ONNX Runtime + FAISS retrieval engine
+│   │   ├── logging_config.py            # Structured JSON logging with Loguru
+│   │   ├── main.py                      # FastAPI application & lifespan manager
+│   │   └── schemas.py                   # Pydantic V2 request & candidate schemas
+│   ├── training/                        # Contrastive InfoNCE training loop
+│   │   ├── losses.py                    # InfoNCE loss with hard negative mining
+│   │   ├── metrics.py                   # Pairwise F1 & Precision/Recall@K evaluators
+│   │   └── trainer.py                   # 2-phase progressive model trainer
+│   └── utils/                           # I/O, random seed, and logging utilities
+├── tests/                               # Comprehensive unit & integration test suite (29 tests)
+│   ├── test_api.py                      # FastAPI endpoints & ONNX inference tests
+│   ├── test_data_pipeline.py            # Zero-leakage split & augmentation tests
+│   ├── test_indexing.py                 # FAISS IVF-PQ & Bayesian calibrator tests
+│   ├── test_losses.py                   # InfoNCE & metric calculation tests
+│   └── test_model_forward.py            # Forward pass shape & gradient flow tests
+├── Dockerfile                           # Root Dockerfile for container builds
+├── requirements.txt                     # Development and training dependencies
+└── requirements-serving.txt             # Lean serving dependencies (FastAPI + ONNX)
 ```
 
 ## Setup
@@ -143,7 +164,7 @@ FusionMatch/
 ### Install
 
 ```bash
-git clone https://github.com/your-username/FusionMatch.git
+git clone https://github.com/aYush007-blip/FusionMatch.git
 cd FusionMatch
 
 python -m venv .venv
