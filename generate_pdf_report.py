@@ -383,18 +383,7 @@ def build_pdf(filename="FusionMatch_Project_Report.pdf"):
         body_style
     ))
 
-    # 10. Resume Entry Summary
-    story.append(Paragraph("10. Resume-Ready Project Summary", h1_style))
-    story.append(Paragraph(
-        "<b>FusionMatch – Cross-Modal Product Deduplication Engine</b><br/>"
-        "<i>Tech Stack: PyTorch, HuggingFace (SigLIP), ONNX Runtime, FAISS, FastAPI, Docker, Python 3.12</i>",
-        h2_style
-    ))
-    story.append(Paragraph("• Engineered a multi-modal duplicate detection engine by fine-tuning <b>SigLIP</b> dual encoders with adaptive quality-gated fusion and <b>InfoNCE contrastive learning</b>, achieving <b>97.19% Test F1</b> and <b>99.50% Recall@5</b> on 700K+ product listings.", bullet_style))
-    story.append(Paragraph("• Compressed vector index footprint to <b>0.73 MB</b> using <b>FAISS IndexIVFPQ</b> and calibrated 78-category <b>Bayesian decision thresholds</b>, achieving <b>0.028 ms/query search latency (~35,000 QPS)</b>.", bullet_style))
-    story.append(Paragraph("• Slashed model size by <b>3.87× (782 MB → 202 MB)</b> via <b>ONNX Dynamic INT8 Quantization</b> and deployed an async <b>FastAPI</b> microservice on <b>Docker</b> sustaining <b>3.85 ms P50 CPU latency</b>.", bullet_style))
-
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 10))
     story.append(HRFlowable(width="100%", thickness=1, color=primary_color, spaceAfter=8, spaceBefore=4))
     story.append(Paragraph(
         "<b>Source Code & Artifacts:</b> <a href='https://github.com/aYush007-blip/FusionMatch' color='#2563eb'><u>https://github.com/aYush007-blip/FusionMatch</u></a> &nbsp;|&nbsp; "
