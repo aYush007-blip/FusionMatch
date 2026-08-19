@@ -38,46 +38,43 @@ Results from the final evaluation run:
 
 ## Architecture
 
-```text
-Product Request
-    |
-    +-- Image(s)
-    +-- Product title
-    +-- Category
-    |
-    v
-Modality Quality Scoring
-    |
-    +-- Image quality / blur score
-    +-- Text density score
-    |
-    v
-ONNX Runtime (INT8)
-    |
-    +-- SigLIP encoder
-    +-- Multi-view attention pooling
-    +-- Quality-gated visual/text fusion
-    +-- 256-dimensional L2-normalized embedding
-    |
-    v
-FAISS IndexIVFPQ
-    |
-    +-- Candidate retrieval
-    +-- Top-K similarity search
-    |
-    v
-Category Threshold Calibration
-    |
-    +-- Bayesian category-specific threshold
-    |
-    v
-FastAPI
-    |
-    +-- Duplicate decision
-    +-- Candidates
-    +-- Similarity scores
-    +-- Fusion gate weights
+```mermaid
+flowchart TD
+    subgraph IN["1. Product Ingestion"]
+        A["<b>Incoming Product Request</b><br/>• Multi-View Images (JPEG/PNG)<br/>• Product Title & Category Metadata"]
+    end
+
+    subgraph QS["2. Modality Quality Scoring"]
+        B1["<b>Visual Quality Estimator</b><br/>Laplacian Blur Variance (q_v ∈ [0, 1])"]
+        B2["<b>Text Quality Estimator</b><br/>Token Count & Density (q_t ∈ [0, 1])"]
+    end
+
+    subgraph ORT["3. ONNX Runtime INT8 Engine (202 MB)"]
+        C1["<b>SigLIP Dual Encoder</b><br/>Vision (Patch16-224) + Text Transformer"]
+        C2["<b>Multi-View Attention Pooling</b><br/>Aggregates multi-perspective views"]
+        C3["<b>Dynamic Gated Fusion</b><br/>g = σ(W · [e_v; e_t; q_v; q_t])"]
+        C4["<b>L2 Unit Projection Head</b><br/>256-d Unit Vector (z ∈ S²⁵⁵)"]
+    end
+
+    subgraph RET["4. Vector Indexing & Decision Calibration"]
+        D["<b>FAISS IndexIVFPQ</b><br/>• nlist=400, m=32, nbits=8, nprobe=16<br/>• Sub-0.03ms Inner-Product Retrieval"]
+        E["<b>Bayesian Threshold Calibration</b><br/>• 78 Category-Specific Cutoffs<br/>• Posterior Beta-Binomial Calibration"]
+    end
+
+    subgraph OUT["5. Production Serving"]
+        F["<b>FastAPI JSON Response (P95 < 6.5 ms)</b><br/>• is_duplicate: true/false<br/>• Top-K Candidate SKUs & Similarities<br/>• Visual vs. Textual Gate Weights"]
+    end
+
+    A --> B1
+    A --> B2
+    B1 --> C1
+    B2 --> C1
+    C1 --> C2 --> C3 --> C4
+    C4 --> D
+    D --> E
+    E --> F
 ```
+
 
 ### Retrieval configuration
 
