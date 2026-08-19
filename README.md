@@ -1,186 +1,196 @@
-# FusionMatch: Cross-Modal & Multi-View Product Deduplication Engine
+# FusionMatch
 
-[![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
+Cross-modal product deduplication for e-commerce catalogs using product images, titles, and category metadata.
+
+[![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.2%2B-ee4c2c.svg)](https://pytorch.org/)
-[![HuggingFace](https://img.shields.io/badge/%F0%9F%A4%97-SigLIP%20Base-yellow.svg)](https://huggingface.co/google/siglip-base-patch16-224)
-[![FAISS](https://img.shields.io/badge/FAISS-IVFPQ%20Compressed-green.svg)](https://github.com/facebookresearch/faiss)
-[![ONNX Runtime](https://img.shields.io/badge/ONNX%20Runtime-INT8%20Quantized-blue.svg)](https://onnxruntime.ai/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Production%20Serving-009688.svg)](https://fastapi.tiangolo.com/)
-[![Docker](https://img.shields.io/badge/Docker-CPU--Optimized-2496ed.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Pytest-29%2F29%20Passed-brightgreen.svg)](tests/)
+[![FAISS](https://img.shields.io/badge/FAISS-IVF--PQ-green.svg)](https://github.com/facebookresearch/faiss)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Serving-009688.svg)](https://fastapi.tiangolo.com/)
+[![Docker](https://img.shields.io/badge/Docker-CPU--optimized-2496ed.svg)](https://www.docker.com/)
+[![Tests](https://img.shields.io/badge/tests-29%20passed-brightgreen.svg)](tests/)
 
----
+## Overview
 
-## 📌 Executive Summary
+FusionMatch identifies duplicate product listings from multiple product views, noisy titles, and catalog metadata.
 
-**FusionMatch** is an industry-grade, production-ready machine learning system engineered to detect and merge duplicate e-commerce product listings across multi-modal inputs (multi-perspective product images, noisy titles, and catalog metadata). 
+The system uses a SigLIP-based vision-language encoder, multi-view pooling, quality-aware gated fusion, FAISS candidate retrieval, and category-specific decision thresholds. The production inference path is exported to ONNX and dynamically quantized to INT8 for CPU serving.
 
-Trained and evaluated on the **Amazon Berkeley Objects (ABO)** dataset using a strict **zero-leakage 80/10/10 SKU-stratified split**, FusionMatch achieves **97.19% Test Pairwise F1** and **99.50% Recall@5**, while maintaining a sub-5ms CPU inference latency budget through **Dynamic INT8 Quantization** and **FAISS IVF-PQ** vector indexing.
+The model was trained and evaluated on the Amazon Berkeley Objects (ABO) dataset using an 80/10/10 SKU-stratified split.
 
----
+## Results
 
-## 🚀 Key Benchmarks & Empirical Results
+Results from the final evaluation run:
 
-All metrics below are collected from the real evaluation run on the Amazon Berkeley Objects test split:
+| Metric | Target | Result |
+|---|---:|---:|
+| Validation Pairwise F1 | ≥ 90.0% | **97.98%** |
+| Test Pairwise F1 | ≥ 90.0% | **97.19%** |
+| Test Precision@1 | ≥ 95.0% | **99.23%** |
+| Test Recall@1 | ≥ 95.0% | **99.23%** |
+| Test Recall@5 | ≥ 98.0% | **99.50%** |
+| Test Recall@10 | ≥ 98.0% | **99.55%** |
+| FAISS search latency (`nprobe=16`) | < 1.0 ms | **0.028 ms/query** |
+| FAISS index memory (10k SKUs) | < 5.0 MB | **1.20 MB** |
+| INT8 ONNX model size | < 250 MB | **202.27 MB** |
+| End-to-end P50 latency | < 8.0 ms | **3.85 ms** |
+| End-to-end P95 latency | < 15.0 ms | **6.42 ms** |
+| Docker image footprint | < 1.5 GB | **1.15 GB** |
 
-| Evaluation Metric | Target SLA | Measured Performance | Result / Margin |
-| :--- | :--- | :--- | :--- |
-| **Validation Pairwise F1** | $\ge 90.0\%$ | **$97.98\%$** | $+7.98\%$ above target |
-| **Test Split Pairwise F1** | $\ge 90.0\%$ | **$97.19\%$** | $+7.19\%$ above target |
-| **Test Precision@1** | $\ge 95.0\%$ | **$99.23\%$** | $+4.23\%$ |
-| **Test Recall@1** | $\ge 95.0\%$ | **$99.23\%$** | $+4.23\%$ |
-| **Test Recall@5** | $\ge 98.0\%$ | **$99.50\%$** | $+1.50\%$ |
-| **Test Recall@10** | $\ge 98.0\%$ | **$99.55\%$** | $+1.55\%$ |
-| **FAISS Search Latency (`nprobe=16`)** | $< 1.0\text{ ms}$ | **$0.028\text{ ms}$ / query** | **$\sim 35,000\text{ QPS}$** |
-| **FAISS Index Memory (10k SKUs)** | $< 5.0\text{ MB}$ | **$1.20\text{ MB}$** | $4.2\times$ under budget |
-| **ONNX Model Size (INT8)** | $< 250\text{ MB}$ | **$202.27\text{ MB}$** | **$3.87\times$ compression** |
-| **P50 Request Latency (End-to-End)** | $< 8.0\text{ ms}$ | **$3.85\text{ ms}$** | $2.1\times$ faster |
-| **P95 Request Latency (End-to-End)** | $< 15.0\text{ ms}$ | **$6.42\text{ ms}$** | $2.3\times$ faster |
-| **Docker Container Footprint** | $< 1.5\text{ GB}$ | **$1.15\text{ GB}$** | CPU-only, no CUDA bloat |
-
----
-
-## 🏗️ System Architecture
+## Architecture
 
 ```text
-[Incoming Product Request] (POST /v1/check)
-  ├── Base64 Image (JPEG/PNG)
-  ├── Product Title (String)
-  └── Category Tag (e.g., "SHOES", "ELECTRONICS")
-         │
-         ▼
-[Modality Quality Scorer]
-  ├── Image Blur Estimation (Laplacian Variance ──► q_v ∈ [0, 1])
-  └── Text Density Estimator (Token Count / Char Ratio ──► q_t ∈ [0, 1])
-         │
-         ▼
-[ONNX Runtime INT8 Engine (202.27 MB)]
-  ├── SigLIP Dual Encoder (Frozen / Fine-tuned Transformer Blocks)
-  ├── Multi-View Attention Pooling (Aggregates multiple perspective views)
-  ├── Dynamic Gated Fusion Layer: g = σ(W · [e_v; e_t; q_v; q_t])
-  └── Contrastive L2 Unit Projection: z ∈ S^{255} (256-d embedding)
-         │
-         ▼
-[FAISS Compressed Search Engine]
-  ├── IndexIVFPQ (nlist=400, m=32, nbits=8, nprobe=16)
-  └── Inner-Product Top-K Candidate Retrieval (0.028 ms latency)
-         │
-         ▼
-[Bayesian Decision Calibration]
-  ├── Lookup Category Threshold θ_c from Beta-Binomial Posterior (78 Categories)
-  └── Decision Rule: is_duplicate = (Top_Similarity >= θ_c)
-         │
-         ▼
-[FastAPI Response] (200 OK | P95 Latency < 6.5 ms)
-  └── { is_duplicate, threshold_used, candidates: [...], gate_weights: { visual, textual } }
+Product Request
+    |
+    +-- Image(s)
+    +-- Product title
+    +-- Category
+    |
+    v
+Modality Quality Scoring
+    |
+    +-- Image quality / blur score
+    +-- Text density score
+    |
+    v
+ONNX Runtime (INT8)
+    |
+    +-- SigLIP encoder
+    +-- Multi-view attention pooling
+    +-- Quality-gated visual/text fusion
+    +-- 256-dimensional L2-normalized embedding
+    |
+    v
+FAISS IndexIVFPQ
+    |
+    +-- Candidate retrieval
+    +-- Top-K similarity search
+    |
+    v
+Category Threshold Calibration
+    |
+    +-- Bayesian category-specific threshold
+    |
+    v
+FastAPI
+    |
+    +-- Duplicate decision
+    +-- Candidates
+    +-- Similarity scores
+    +-- Fusion gate weights
 ```
 
----
+### Retrieval configuration
 
-## 📂 Repository Structure
+The production index uses `IndexIVFPQ` with:
+
+- `nlist=400`
+- `m=32`
+- `nbits=8`
+- `nprobe=16`
+- Inner-product similarity
+
+Measured FAISS search latency is approximately 0.028 ms/query on the evaluated setup.
+
+## Repository Structure
 
 ```text
-Deduplication/
-├── artifacts/                           # Saved weights, metrics, and production indexes
-│   ├── checkpoints/                     # PyTorch checkpoints (best.pt, warmup_best.pt)
-│   ├── index/                           # Compressed FAISS index & calibrated thresholds
-│   │   ├── id_map.json                  # SKU ID index mapping
-│   │   ├── index.faiss                  # Production IndexIVFPQ
-│   │   └── thresholds.json              # 78 Bayesian category decision thresholds
-│   ├── metrics/                         # Training history & test evaluation benchmarks
-│   │   ├── final_summary_report.csv     # Master benchmark metrics
-│   │   ├── nprobe_benchmark.csv         # FAISS latency-recall Pareto curve
-│   │   ├── test_metrics.json            # Final test split F1, P@K, R@K
-│   │   └── training_curves.png          # 3-panel high-res training trajectory plot
-│   └── onnx/                            # Exported & quantized production graphs
-│       ├── fusion_match_fp32.onnx       # Full precision ONNX computation graph
-│       └── fusion_match_int8.onnx       # Dynamic INT8 quantized ONNX graph (202 MB)
-├── config/                              # Hyperparameters & serving configurations
+FusionMatch/
+├── artifacts/
+│   ├── checkpoints/
+│   ├── index/
+│   │   ├── id_map.json
+│   │   ├── index.faiss
+│   │   └── thresholds.json
+│   ├── metrics/
+│   │   ├── final_summary_report.csv
+│   │   ├── nprobe_benchmark.csv
+│   │   ├── test_metrics.json
+│   │   └── training_curves.png
+│   └── onnx/
+│       ├── fusion_match_fp32.onnx
+│       └── fusion_match_int8.onnx
+├── config/
 │   ├── default_config.yaml
 │   └── serving_config.yaml
-├── docker/                              # Containerization orchestration
-│   └── docker-compose.yaml              # Production compose setup with healthchecks
-├── notebooks/                           # Colab training & validation workflows
-│   └── FusionMatch_Colab_Master.ipynb   # 11-step master pipeline with Drive checkpointing
-├── src/                                 # Production source code
-│   ├── data/                            # ABO parsing, disjoint splits, augmentations
-│   │   ├── abo_loader.py
-│   │   ├── augmentations.py
-│   │   ├── dataset.py
-│   │   └── quality_proxies.py
-│   ├── export/                          # ONNX export & INT8 quantization scripts
-│   │   ├── quantize.py
-│   │   └── to_onnx.py
-│   ├── indexing/                        # Vector indexing & Bayesian calibration
-│   │   ├── build_index.py
-│   │   └── threshold_calibration.py
-│   ├── models/                          # Neural network architectures
-│   │   ├── fusion_match_model.py
-│   │   ├── gated_fusion.py
-│   │   ├── multi_view_pooling.py
-│   │   └── quality_proxies.py
-│   ├── serving/                         # FastAPI inference engine & schemas
-│   │   ├── inference.py
-│   │   ├── logging_config.py
-│   │   ├── main.py
-│   │   └── schemas.py
-│   ├── training/                        # Contrastive InfoNCE trainer & hard mining
-│   │   ├── losses.py
-│   │   ├── metrics.py
-│   │   └── trainer.py
-│   └── utils/                           # I/O, seed, and logging helpers
-├── tests/                               # Comprehensive Pytest suite (29 tests)
+├── docker/
+│   └── docker-compose.yaml
+├── notebooks/
+│   └── FusionMatch_Colab_Master.ipynb
+├── src/
+│   ├── data/
+│   ├── export/
+│   ├── indexing/
+│   ├── models/
+│   ├── serving/
+│   ├── training/
+│   └── utils/
+├── tests/
 │   ├── test_api.py
 │   ├── test_data_pipeline.py
 │   ├── test_indexing.py
 │   ├── test_losses.py
 │   └── test_model_forward.py
-├── Dockerfile                           # Multi-stage CPU-optimized build
-├── requirements.txt                     # Training & development dependencies
-├── requirements-serving.txt             # Ultra-lean serving dependencies
-└── README.md
+├── Dockerfile
+├── requirements.txt
+└── requirements-serving.txt
 ```
 
----
+## Setup
 
-## 🛠️ Quick Start Guide
+### Requirements
 
-### 1. Environment Setup
+- Python 3.10, 3.11, or 3.12
+- PyTorch 2.2+
+- Docker (optional)
+
+### Install
+
 ```bash
-# Clone the repository
 git clone https://github.com/your-username/FusionMatch.git
 cd FusionMatch
 
-# Create and activate virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate
+# Windows:
+# .venv\Scripts\activate
 
-# Install development dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Run Test Suite
-Verify that all 29 unit and integration tests pass:
+## Tests
+
+Run the test suite with:
+
 ```bash
 pytest tests/ -v
 ```
 
-### 3. Launch the FastAPI Serving Engine
+The evaluated repository contains 29 unit and integration tests.
+
+## Running the API
+
+Start the FastAPI service with:
+
 ```bash
 uvicorn src.serving.main:app --host 0.0.0.0 --port 8000 --workers 2
 ```
 
-Access the interactive OpenAPI Swagger documentation at: `http://localhost:8000/docs`
+Once running, Swagger UI is available at:
 
----
+```text
+http://localhost:8000/docs
+```
 
-## 📡 API Usage & Endpoints
+## API
 
-### 1. Health Check (`GET /health`)
+### Health check
+
 ```bash
 curl -X GET http://localhost:8000/health
 ```
-**Response:**
+
+Example response:
+
 ```json
 {
   "status": "ok",
@@ -190,7 +200,10 @@ curl -X GET http://localhost:8000/health
 }
 ```
 
-### 2. Single Product Deduplication (`POST /v1/check`)
+### Check a product
+
+`POST /v1/check`
+
 ```bash
 curl -X POST http://localhost:8000/v1/check \
   -H "Content-Type: application/json" \
@@ -201,7 +214,9 @@ curl -X POST http://localhost:8000/v1/check \
     "top_k": 3
   }'
 ```
-**Response:**
+
+Example response:
+
 ```json
 {
   "is_duplicate": true,
@@ -213,7 +228,7 @@ curl -X POST http://localhost:8000/v1/check \
     },
     {
       "sku_id": "B014I8SX4Y",
-      "similarity": 0.8210
+      "similarity": 0.821
     }
   ],
   "gate_weights": {
@@ -223,35 +238,71 @@ curl -X POST http://localhost:8000/v1/check \
 }
 ```
 
-### 3. Batch Deduplication (`POST /v1/check/batch`)
-Accepts up to 100 items per request and processes them in parallel.
+### Batch requests
 
----
+`POST /v1/check/batch`
 
-## 🐳 Docker Deployment
+The batch endpoint accepts up to 100 products per request and processes them in parallel.
 
-### Run with Docker Compose
+## Docker
+
+Build and start the service with Docker Compose:
+
 ```bash
 docker compose -f docker/docker-compose.yaml up --build -d
 ```
 
-Check health:
+Check the running service:
+
 ```bash
 curl http://localhost:8000/health
 ```
 
----
+The production container is CPU-only and has an evaluated footprint of approximately 1.15 GB.
 
-## 💼 Resume-Ready Bullet Points
+## Model and Inference
 
-If showcasing this project on your resume, portfolio, or LinkedIn:
+FusionMatch combines visual and textual product information into a shared 256-dimensional embedding.
 
-* **Engineered an End-to-End Cross-Modal Deduplication Engine (FusionMatch)**: Built a multi-modal duplicate detection pipeline combining fine-tuned SigLIP vision-language embeddings, dynamic quality-gated fusion, and attention-based multi-view pooling on the Amazon Berkeley Objects (ABO) dataset.
-* **Achieved 97.19% Test Pairwise F1 & 99.50% Recall@5**: Implemented InfoNCE contrastive learning with online semi-hard negative mining, training in a progressive 3-stage warm-up/fine-tuning regimen on T4 GPUs with zero-leakage SKU stratification.
-* **Optimized Sub-5ms CPU Latency with INT8 ONNX & FAISS IVF-PQ**: Compressed model footprint by 3.87x (782 MB to 202 MB) using dynamic INT8 quantization, and built a compressed FAISS `IndexIVFPQ` vector index achieving 0.028ms retrieval latency (~35,000 QPS) with calibrated Bayesian decision thresholds across 78 product categories.
-* **Production Serving & Infrastructure**: Deployed an asynchronous FastAPI microservice with structured JSON logging, Pydantic V2 validation, multi-stage Docker containerization (<1.2 GB image), and 100% test coverage across 29 unit and integration tests.
+The inference pipeline includes:
 
----
+1. Image and text quality estimation.
+2. SigLIP-based feature extraction.
+3. Attention-based aggregation of multiple product views.
+4. Quality-aware gated fusion of visual and textual features.
+5. L2 normalization of the fused embedding.
+6. Approximate nearest-neighbor retrieval using FAISS IVF-PQ.
+7. Category-specific duplicate decision using calibrated thresholds.
 
-## 📜 License
-MIT License. Open-source for academic and industrial research.
+The production model is exported to ONNX and dynamically quantized to INT8. The evaluated model size is 202.27 MB, compared with 782 MB for the full-precision model.
+
+## Training
+
+The training pipeline uses contrastive learning with InfoNCE loss and online semi-hard negative mining.
+
+Training and evaluation use SKU-level separation to prevent product-level leakage between splits. The final evaluation follows an 80/10/10 train/validation/test split.
+
+The training workflow is available in:
+
+```text
+notebooks/FusionMatch_Colab_Master.ipynb
+```
+
+## Artifacts
+
+Evaluation and deployment artifacts are stored under `artifacts/`:
+
+- Trained model checkpoints
+- FAISS production index
+- SKU-to-index mapping
+- Category-specific thresholds
+- Test metrics
+- FAISS latency benchmarks
+- Training curves
+- FP32 and INT8 ONNX models
+
+## License
+
+MIT License.
+
+This project is intended for academic and industrial research use.
