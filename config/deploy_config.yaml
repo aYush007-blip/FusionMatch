@@ -1,0 +1,15 @@
+serving:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 2
+  timeout: 30
+  log_level: "INFO"
+
+engine:
+  onnx_model_path: "artifacts/onnx/fusion_match_int8.onnx"
+  faiss_index_path: "artifacts/index/index.faiss"
+  id_map_path: "artifacts/index/id_map.json"
+  thresholds_path: "artifacts/index/thresholds.json"
+  nprobe: 16
+  top_k_default: 5
+  max_batch_size: 100

@@ -1,0 +1,56 @@
+project:
+  name: FusionMatch
+  seed: 42
+
+data:
+  images_root: data/raw/abo-images-small
+  listings_root: data/raw/abo-listings
+  processed_dir: data/processed
+  cache_dir: data/cache
+  max_skus: 11000
+  min_images_per_sku: 1
+  train_val_test_split: [0.8, 0.1, 0.1]
+  use_supplementary_data: false   # Shopee / Stanford Online Products toggle
+  img_size: 256
+  max_text_len: 64
+
+model:
+  base_model_id: google/siglip-base-patch16-256-multilingual
+  embed_dim: 256
+  shared_fusion_dim: 768
+  freeze_vision_warmup: true
+  freeze_text_warmup: true
+  unfreeze_last_n_blocks: 2
+
+training:
+  batch_size: 32
+  warmup_epochs: 5
+  total_epochs: 15
+  lr_head: 2.0e-5
+  lr_backbone: 2.0e-6
+  weight_decay: 0.01
+  temperature: 0.07
+  hard_negative_start_epoch: 3
+  hard_negative_bank_size: 4096
+  hard_negatives_per_anchor: 4
+  grad_clip_norm: 1.0
+  mixed_precision: true
+  checkpoint_path: artifacts/checkpoints/best.pt
+
+indexing:
+  nlist: 400
+  pq_m: 32
+  pq_nbits: 8
+  nprobe: 16
+  metric: inner_product
+
+evaluation:
+  top_k: 5
+  target_pairwise_f1: 0.90
+  target_precision_at_k: 0.95
+  target_recall_at_k: 0.90
+
+export:
+  onnx_opset: 17
+  quantize: true
+  quantize_ops: [MatMul, Gemm]

@@ -1,0 +1,32 @@
+# FusionMatch Dependencies
+# Core Deep Learning & Computer Vision
+torch>=2.2.0
+torchvision>=0.17.0
+transformers>=4.42.0
+pillow>=10.3.0
+albumentations>=1.4.10
+opencv-python>=4.9.0
+
+# Vector Search & Indexing
+faiss-cpu>=1.8.0
+
+# Data Science & Utilities
+pandas>=2.2.0
+numpy>=1.26.0
+scikit-learn>=1.5.0
+scipy>=1.13.0
+tqdm>=4.66.0
+pyyaml>=6.0.1
+requests>=2.32.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Serving & APIs (for Phase 5)
+fastapi>=0.111.0
+uvicorn>=0.30.0
+pydantic>=2.7.0
+python-multipart>=0.0.9
+loguru>=0.7.2
+
+# Testing
+pytest>=7.4.0

@@ -1,0 +1,16 @@
+# Merged on top of base_config.yaml when running in resource-constrained environments (e.g. Colab Free Tier)
+data:
+  max_skus: 10500          # trims slightly further if disk/memory pressure observed
+  cache_tensors: true
+
+training:
+  batch_size: 16            # fallback if OOM on shared T4 instances
+  gradient_accumulation_steps: 2
+  checkpoint_every_n_epochs: 1
+  resume_from_checkpoint: true
+
+runtime:
+  drive_mount: true
+  project_root_drive: "/content/drive/MyDrive/FusionMatch"
+  max_session_hours: 11     # leaves margin before the ~12h hard cap
+  autosave_interval_minutes: 20

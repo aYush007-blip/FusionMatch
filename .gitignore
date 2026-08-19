@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Raw and Processed Datasets (ABO images and raw shards)
+data/raw/
+data/processed/
+*.tar
+*.tar.gz
+*.csv.gz
+
+# Large Model Checkpoints & Large Binaries (>100MB)
+# Note: Full weights and ONNX graphs can be downloaded via Colab or HuggingFace / Google Drive
+artifacts/checkpoints/*.pt
+artifacts/onnx/*.onnx
+artifacts/onnx/*.data
+artifacts/index/index_flat_baseline.faiss
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
