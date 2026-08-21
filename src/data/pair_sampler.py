@@ -105,6 +105,8 @@ class PairSampler:
 
     def sample_triplet(self, sku_id: Optional[str] = None) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
         """Samples an (anchor, positive, hard_negative) record triplet."""
+        if not self.unique_skus:
+            raise ValueError("Cannot sample triplet from an empty manifest.")
         if sku_id is None:
             sku_id = self.rng.choice(self.unique_skus)
 
@@ -114,6 +116,8 @@ class PairSampler:
 
     def sample_batch_records(self, batch_size: int) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
         """Samples a batch of positive pairs for contrastive learning."""
+        if not self.unique_skus:
+            return []
         sampled_skus = self.rng.choices(self.unique_skus, k=batch_size)
         batch = []
         for sku in sampled_skus:

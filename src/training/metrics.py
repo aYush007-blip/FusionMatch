@@ -79,6 +79,8 @@ def compute_precision_recall_at_k(
     recalls = []
 
     actual_k = min(k, n - 1)
+    # Batch top-k retrieval
+    all_topk_idx = torch.topk(sims, k=actual_k, dim=-1).indices.cpu().numpy()
 
     for i in range(n):
         # Total positive duplicates for item i in the catalog (excluding itself)
@@ -87,7 +89,7 @@ def compute_precision_recall_at_k(
             # Query has no true duplicates in the split
             continue
 
-        topk_idx = torch.topk(sims[i], k=actual_k).indices.cpu().numpy()
+        topk_idx = all_topk_idx[i]
         hits = int((sku_arr[topk_idx] == sku_arr[i]).sum())
 
         precisions.append(hits / float(k))

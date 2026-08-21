@@ -62,7 +62,10 @@ def extract_tar(tar_path: Path | str, extract_dir: Path | str) -> Path:
 
     print(f"Extracting {tar_p.name} to {ext_d}...")
     with tarfile.open(tar_p, "r:*") as tar:
-        tar.extractall(path=ext_d)
+        try:
+            tar.extractall(path=ext_d, filter="data")
+        except TypeError:
+            tar.extractall(path=ext_d)
     print(f"Extraction finished: {ext_d}")
     return ext_d
 
@@ -387,9 +390,9 @@ def split_by_sku(
 
     sku_categories = manifest.groupby("sku_id")["category"].first().reset_index()
     
-    # Stratify by category if possible
+    # Stratify by category if possible (requires at least 2 classes and min 2 items per class)
     cat_counts = sku_categories["category"].value_counts()
-    valid_strat = cat_counts.min() >= 2
+    valid_strat = len(cat_counts) > 1 and (cat_counts.min() >= 2)
     strat_col = sku_categories["category"] if valid_strat else None
 
     # Step 1: Train vs (Val + Test)
@@ -403,7 +406,7 @@ def split_by_sku(
 
     # Step 2: Val vs Test
     temp_cat_counts = temp_skus["category"].value_counts()
-    valid_temp_strat = temp_cat_counts.min() >= 2
+    valid_temp_strat = len(temp_cat_counts) > 1 and (temp_cat_counts.min() >= 2)
     temp_strat_col = temp_skus["category"] if valid_temp_strat else None
     val_prop = val_r / (val_r + test_r)
 

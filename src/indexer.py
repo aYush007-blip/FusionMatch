@@ -2,7 +2,6 @@ import os
 import json
 import faiss
 import numpy as np
-import networkx as nx
 from src.config import settings
 
 class CatalogIndexer:
@@ -16,14 +15,19 @@ class CatalogIndexer:
     def _load_persisted_index(self):
         if os.path.exists(settings.FAISS_INDEX_PATH) and os.path.exists(settings.METADATA_PATH):
             self.index = faiss.read_index(settings.FAISS_INDEX_PATH)
-            with open(settings.METADATA_PATH, "r") as f:
+            with open(settings.METADATA_PATH, "r", encoding="utf-8") as f:
                 self.metadata = json.load(f)
 
     def persist(self):
-        os.makedirs(os.path.dirname(settings.FAISS_INDEX_PATH), exist_ok=True)
+        index_dir = os.path.dirname(settings.FAISS_INDEX_PATH)
+        if index_dir:
+            os.makedirs(index_dir, exist_ok=True)
         faiss.write_index(self.index, settings.FAISS_INDEX_PATH)
-        with open(settings.METADATA_PATH, "w") as f:
-            json.dump(self.metadata, f)
+        meta_dir = os.path.dirname(settings.METADATA_PATH)
+        if meta_dir:
+            os.makedirs(meta_dir, exist_ok=True)
+        with open(settings.METADATA_PATH, "w", encoding="utf-8") as f:
+            json.dump(self.metadata, f, indent=2)
 
     def add_item(self, item_id: str, title: str, vector: np.ndarray):
         self.index.add(vector.astype("float32"))

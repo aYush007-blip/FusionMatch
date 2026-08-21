@@ -138,7 +138,7 @@ class FusionMatchTrainer:
                 pos_qv = batch.get("positive_q_v")
                 pos_qt = batch.get("positive_q_t")
 
-                sku_ids = batch.get("sku_ids", [f"sku_{i}" for i in range(anc_pixels.size(0))])
+                sku_ids = batch.get("anchor_sku_id", batch.get("sku_ids", batch.get("sku_id", [f"sku_{i}" for i in range(anc_pixels.size(0))])))
             else:
                 # Standard batch
                 anc_pixels = batch["pixel_values"].to(self.device)
@@ -151,7 +151,7 @@ class FusionMatchTrainer:
                 pos_pixels, pos_ids, pos_mask, pos_qv, pos_qt = (
                     anc_pixels, anc_ids, anc_mask, anc_qv, anc_qt
                 )
-                sku_ids = batch.get("sku_ids", [f"sku_{i}" for i in range(anc_pixels.size(0))])
+                sku_ids = batch.get("sku_ids", batch.get("sku_id", [f"sku_{i}" for i in range(anc_pixels.size(0))])))
 
             device_type = "cuda" if self.device.startswith("cuda") else "cpu"
             with torch.amp.autocast(device_type=device_type, enabled=self.use_amp):

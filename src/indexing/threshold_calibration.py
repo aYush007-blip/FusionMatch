@@ -50,12 +50,17 @@ class BayesianThresholdCalibrator:
         if len(sims) == 0:
             return 0.70
 
-        result = minimize_scalar(
-            lambda t: -self._expected_f1_at_threshold(sims, labels, float(t)),
-            bounds=(0.30, 0.99),
-            method="bounded",
-        )
-        return float(np.clip(result.x, 0.30, 0.99))
+        try:
+            result = minimize_scalar(
+                lambda t: -self._expected_f1_at_threshold(sims, labels, float(t)),
+                bounds=(0.30, 0.99),
+                method="bounded",
+            )
+            if hasattr(result, "x") and not np.isnan(result.x):
+                return float(np.clip(result.x, 0.30, 0.99))
+            return 0.70
+        except Exception:
+            return 0.70
 
     def fit(self, val_pairs_by_category: Dict[str, Tuple[np.ndarray, np.ndarray]]) -> Dict[str, float]:
         """Fits optimal thresholds for each product category and sets a global fallback.

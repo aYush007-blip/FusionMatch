@@ -74,12 +74,17 @@ class FusionMatchInferenceEngine:
     def _decode_image(self, image_base64: str) -> Tuple[np.ndarray, float]:
         """Decodes base64 string to normalized image tensor array and quality score."""
         try:
+            image_str = image_base64.strip()
             # Strip data URI prefix if present
-            if "," in image_base64:
-                image_base64 = image_base64.split(",", 1)[1]
-            raw_bytes = base64.b64decode(image_base64)
+            if "," in image_str:
+                image_str = image_str.split(",", 1)[1]
+            # Fix padding if missing
+            pad_len = len(image_str) % 4
+            if pad_len > 0:
+                image_str += "=" * (4 - pad_len)
+            raw_bytes = base64.b64decode(image_str)
             img = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
-        except Exception as e:
+        except Exception:
             # Fallback for blank/corrupted images
             img = Image.new("RGB", (224, 224), color=(128, 128, 128))
 
@@ -170,13 +175,15 @@ class FusionMatchInferenceEngine:
         emb, gate_weights = self._embed_multimodal(pixel_arr, input_ids, attn_mask, q_v, q_t)
 
         # FAISS search
-        sims, indices = self.index.search(emb.astype(np.float32), top_k)
         candidates: List[Candidate] = []
+        if self.index.ntotal > 0:
+            actual_k = min(top_k, self.index.ntotal)
+            sims, indices = self.index.search(emb.astype(np.float32), actual_k)
 
-        for sim, idx in zip(sims[0], indices[0]):
-            if idx >= 0:
-                sku = self.id_map.get(str(idx), f"SKU_{idx}")
-                candidates.append(Candidate(sku_id=sku, similarity=float(np.clip(sim, 0.0, 1.0))))
+            for sim, idx in zip(sims[0], indices[0]):
+                if idx >= 0:
+                    sku = self.id_map.get(str(idx), f"SKU_{idx}")
+                    candidates.append(Candidate(sku_id=sku, similarity=float(np.clip(sim, 0.0, 1.0))))
 
         threshold = self.calibrator.get_threshold(category)
         top_sim = candidates[0].similarity if candidates else 0.0

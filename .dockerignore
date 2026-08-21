@@ -1,0 +1,34 @@
+# Git & IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Virtual Environment & Python Caches
+.venv/
+env/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Pytest & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Raw Datasets & Local Caches (Avoid sending multi-GB files to docker daemon)
+data/raw/
+data/cache/
+*.tar
+*.tar.gz
+*.csv.gz
+
+# Large Checkpoints (Only export artifacts needed for serving)
+artifacts/checkpoints/*.pt
+artifacts/index/index_flat_baseline.faiss
+
+# OS Files
+.DS_Store
+Thumbs.db

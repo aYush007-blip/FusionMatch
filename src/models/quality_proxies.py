@@ -16,11 +16,14 @@ def compute_single_image_quality(image: Union[Image.Image, np.ndarray, torch.Ten
     """
     if isinstance(image, torch.Tensor):
         # Convert tensor (C, H, W) or (1, C, H, W) to numpy uint8
-        t = image.detach().cpu()
+        t = image.detach().cpu().float()
         if t.ndim == 4:
             t = t.squeeze(0)
         if t.shape[0] in [1, 3]:  # CHW -> HWC
             t = t.permute(1, 2, 0)
+        # Check if normalized in [-1, 1] and rescale to [0, 1]
+        if t.min() < 0.0:
+            t = t * 0.5 + 0.5
         arr = (t.numpy() * 255.0).clip(0, 255).astype(np.uint8)
         if arr.shape[-1] == 3:
             gray = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)

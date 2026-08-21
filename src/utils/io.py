@@ -28,7 +28,10 @@ def load_checkpoint(
     path = Path(checkpoint_path)
     if not path.exists():
         raise FileNotFoundError(f"Checkpoint not found at: {path}")
-    payload = torch.load(str(path), map_location=device)
+    try:
+        payload = torch.load(str(path), map_location=device, weights_only=False)
+    except TypeError:
+        payload = torch.load(str(path), map_location=device)
     if isinstance(payload, dict) and "state_dict" in payload:
         return payload
     return {"state_dict": payload, "metadata": {}}

@@ -49,6 +49,9 @@ class InfoNCELoss(nn.Module):
             Scalar contrastive cross-entropy loss tensor.
         """
         B = anchor_emb.size(0)
+        if B == 0:
+            return torch.tensor(0.0, device=anchor_emb.device, requires_grad=True)
+
         temp = self.temperature
         device = anchor_emb.device
 
@@ -105,6 +108,11 @@ class HardNegativeMiner:
         if n == 0:
             return
 
+        if n > self.bank_size:
+            embeddings = embeddings[-self.bank_size:]
+            sku_ids = sku_ids[-self.bank_size:]
+            n = self.bank_size
+
         emb_cpu = embeddings.detach().to(self.device)
         end = self.ptr + n
 
@@ -146,7 +154,7 @@ class HardNegativeMiner:
         B = anchor_embeddings.size(0)
         num_avail = self.current_size
 
-        if num_avail < self.k:
+        if num_avail < self.k or B == 0:
             # Not enough items in bank yet
             return torch.empty((B, 0, self.embed_dim), device=anchor_embeddings.device)
 
@@ -157,18 +165,21 @@ class HardNegativeMiner:
         # Compute cosine similarity between anchors and bank: (B, N)
         sims = anchors_dev @ active_bank.T
 
+        # Fast lookup mapping for same-SKU indices to prevent false negatives
+        sku_to_indices = {}
+        for idx, s in enumerate(active_skus):
+            if s is not None:
+                sku_to_indices.setdefault(s, []).append(idx)
+
         hard_negs = []
         actual_k = min(self.k, num_avail)
 
         for i, sku in enumerate(anchor_sku_ids):
             row = sims[i].clone()
             # Mask out any entry that belongs to the same SKU (false negative prevention)
-            mask = torch.tensor(
-                [1.0 if active_skus[j] == sku else 0.0 for j in range(num_avail)],
-                device=self.device,
-                dtype=torch.float32,
-            )
-            row = row - mask * 1e4
+            same_indices = sku_to_indices.get(sku)
+            if same_indices:
+                row[same_indices] = -1e4
             topk_idx = torch.topk(row, k=actual_k).indices
             hard_negs.append(active_bank[topk_idx])
 

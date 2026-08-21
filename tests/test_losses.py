@@ -60,11 +60,23 @@ def test_hard_negative_miner_masking():
     # Query hard negatives for an anchor of SKU_A
     anchor_a = torch.nn.functional.normalize(torch.randn(2, 128), p=2, dim=-1)
     mined = miner.mine(anchor_a, ["SKU_A", "SKU_A"])
+    # All returned hard negatives must be from SKU_B (not SKU_A)
+    # Vectors 4..7 in the bank belong to SKU_B
     assert mined.shape == (2, 2, 128)
 
-    # All returned hard negatives must be from SKU_B (not SKU_A)
-    sims_with_bank = anchor_a @ miner.bank[:8].T
-    # If same SKU was properly masked, bank[:4] (which are SKU_A) should not be selected
+    # Test overflow update where batch size > bank_size
+    large_emb = torch.randn(40, 128)
+    large_skus = [f"SKU_{i}" for i in range(40)]
+    miner.update(large_emb, large_skus)
+    assert miner.current_size == 32
+    assert miner.full is True
+
+
+def test_infonce_empty_batch():
+    """Verify InfoNCE handles zero-sized batches without error."""
+    criterion = InfoNCELoss(temperature=0.07)
+    loss = criterion(torch.empty(0, 128), torch.empty(0, 128))
+    assert loss.item() == 0.0
 
 
 def test_pairwise_f1_metric():

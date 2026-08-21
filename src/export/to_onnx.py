@@ -61,16 +61,23 @@ def export_to_onnx(
     }
 
     print(f"Exporting FusionMatch model to ONNX: {out_file} (opset={opset_version})...")
+    export_kwargs = {
+        "input_names": ["pixel_values", "input_ids", "attention_mask", "q_v", "q_t"],
+        "output_names": ["embedding", "gates"],
+        "dynamic_axes": dynamic_axes,
+        "opset_version": opset_version,
+        "do_constant_folding": True,
+    }
+    import inspect
+    sig = inspect.signature(torch.onnx.export)
+    if "dynamo" in sig.parameters:
+        export_kwargs["dynamo"] = False
+
     torch.onnx.export(
         model,
         (dummy_pixels, dummy_input_ids, dummy_attention_mask, dummy_qv, dummy_qt),
         str(out_file),
-        input_names=["pixel_values", "input_ids", "attention_mask", "q_v", "q_t"],
-        output_names=["embedding", "gates"],
-        dynamic_axes=dynamic_axes,
-        opset_version=opset_version,
-        do_constant_folding=True,
-        dynamo=False,
+        **export_kwargs,
     )
 
     # Validate ONNX graph integrity

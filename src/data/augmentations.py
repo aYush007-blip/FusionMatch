@@ -183,7 +183,10 @@ class ImageAugmenter:
         arr = np.array(img).copy()
         # Fill with either gray (128) or white/black
         fill_color = self.rng.choice([0, 128, 240])
-        arr[y1:y1 + box_h, x1:x1 + box_w, :] = fill_color
+        if arr.ndim == 3:
+            arr[y1:y1 + box_h, x1:x1 + box_w, :] = fill_color
+        else:
+            arr[y1:y1 + box_h, x1:x1 + box_w] = fill_color
         return Image.fromarray(arr)
 
     def augment(self, img: Image.Image | np.ndarray) -> Image.Image:

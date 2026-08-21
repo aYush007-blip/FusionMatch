@@ -205,3 +205,25 @@ def test_dataset_and_dataloader(mock_manifest):
     assert batch["positive_pixel_values"].shape == (4, 3, 256, 256)
     assert batch["anchor_input_ids"].shape == (4, 64)
     assert len(batch["anchor_sku_id"]) == 4
+
+
+def test_single_category_split_no_crash():
+    """Verify split_by_sku works gracefully when all SKUs belong to a single category."""
+    single_cat_df = pd.DataFrame([
+        {"sku_id": f"SKU_{i}", "image_path": f"img_{i}.jpg", "title": f"Item {i}", "brand": "B", "category": "ONLY_ONE"}
+        for i in range(10)
+    ])
+    train_df, val_df, test_df = split_by_sku(single_cat_df, seed=42, ratios=(0.6, 0.2, 0.2))
+    assert len(train_df) > 0
+    assert len(val_df) > 0
+    assert len(test_df) > 0
+    assert set(train_df["sku_id"]).isdisjoint(set(val_df["sku_id"]))
+
+
+def test_grayscale_and_2d_cutout():
+    """Verify ImageAugmenter handles 2D grayscale image arrays without dimension error."""
+    gray_arr = np.random.randint(0, 255, (100, 100), dtype=np.uint8)
+    augmenter = ImageAugmenter(cutout_prob=1.0, seed=42)
+    cutout_img = augmenter.apply_cutout(Image.fromarray(gray_arr))
+    assert isinstance(cutout_img, Image.Image)
+

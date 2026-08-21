@@ -100,7 +100,7 @@ class SiglipDualEncoder(nn.Module):
         if pixel_values.ndim == 5:
             # Multi-view input (B, K, 3, H, W)
             B, K, C, H, W = pixel_values.shape
-            flat_pixels = pixel_values.view(B * K, C, H, W)
+            flat_pixels = pixel_values.reshape(B * K, C, H, W)
             
             if self.use_mock:
                 v_feat = self.vision_mock(flat_pixels)  # (B*K, 768)
@@ -113,7 +113,7 @@ class SiglipDualEncoder(nn.Module):
                 )
             
             # Mean-pool across the K angle perspectives: (B, K, 768) -> (B, 768)
-            v_pool = v_feat.view(B, K, -1).mean(dim=1)
+            v_pool = v_feat.reshape(B, K, -1).mean(dim=1)
         else:
             # Single-view input (B, 3, H, W)
             if self.use_mock:
@@ -156,11 +156,14 @@ class SiglipDualEncoder(nn.Module):
             out = self.backbone.text_model(
                 input_ids=input_ids, attention_mask=attention_mask
             )
-            t_pool = (
-                out.pooler_output
-                if getattr(out, "pooler_output", None) is not None
-                else out.last_hidden_state.mean(dim=1)
-            )
+            if getattr(out, "pooler_output", None) is not None:
+                t_pool = out.pooler_output
+            else:
+                # Masked mean pooling over non-padding tokens
+                mask = attention_mask.unsqueeze(-1).float()
+                sum_emb = (out.last_hidden_state * mask).sum(dim=1)
+                lens = mask.sum(dim=1).clamp(min=1.0)
+                t_pool = sum_emb / lens
 
         return t_pool
 

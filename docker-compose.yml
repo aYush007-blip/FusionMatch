@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  fusionmatch-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: fusionmatch-api:latest
+    container_name: fusionmatch_service
+    ports:
+      - "8000:8000"
+    environment:
+      - LOG_LEVEL=INFO
+      - ONNX_PATH=artifacts/onnx/fusion_match_int8.onnx
+      - INDEX_PATH=artifacts/index/index.faiss
+      - ID_MAP_PATH=artifacts/index/id_map.json
+      - THRESHOLDS_PATH=artifacts/index/thresholds.json
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1024M
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    restart: unless-stopped
